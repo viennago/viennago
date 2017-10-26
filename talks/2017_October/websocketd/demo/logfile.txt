@@ -1,0 +1,7 @@
+Let's pretend this is a log file entry
+And this one
+And this one
+And this one
+And another one
+Hurray!
+AWESOME
