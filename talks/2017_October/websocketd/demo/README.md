@@ -6,3 +6,5 @@ We also had a look at using tail -f with websocketd, and showed how we can appen
 
 I've included the count.sh script from the tutorial, as well as the example tail -f log file, for convenience.
 
+Command used to demonstrate websocketd with tail -f:
+`websocketd --port 1234 tail -f logfile.txt`
