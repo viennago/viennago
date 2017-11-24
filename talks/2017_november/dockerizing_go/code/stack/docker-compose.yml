@@ -1,0 +1,35 @@
+version: '2'
+services:
+    postgres:
+        image: postgres:alpine
+        container_name: viennago-postgres
+        ports:
+            - "5432:5432"
+        volumes:
+            - ./tables.sql:/docker-entrypoint-initdb.d/tables.sql
+            - postgres-db-volume:/data/postgres
+        environment:
+            - POSTGRES_USER=gopher
+            - POSTGRES_PASSWORD=gopherpw
+            - POSTGRES_DB=viennago
+        networks:
+            - viennagonet
+
+    viennago_app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: viennago-container
+        depends_on:
+            - postgres
+        ports:
+            - "8080:8080"
+        networks:
+            - viennagonet
+
+volumes:
+    postgres-db-volume:
+
+networks:
+    viennagonet:
+        driver: bridge
