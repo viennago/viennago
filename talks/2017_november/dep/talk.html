@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="generator" content=
+  "HTML Tidy for HTML5 for Linux version 5.2.0">
+  <meta charset="utf-8">
+  <title>dep</title>
+  <meta name="description" content="go dependency management">
+  <meta name="author" content="Klaus Ita">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content=
+  "black-translucent">
+  <link rel="stylesheet" href="css/reveal.css">
+  <link rel="stylesheet" href="css/theme/default.css" id="theme">
+  <link href=
+  "//fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,400,600,700&amp;subset=latin,cyrillic-ext,greek-ext,greek,latin-ext,cyrillic"
+  rel="stylesheet" type="text/css" data-application-font=
+  "opensans"><!-- For syntax highlighting -->
+  <link rel="stylesheet" href="lib/css/zenburn.css">
+</head>
+<body style="background:#44A0DD">
+  <div class="reveal">
+    <div class="slides">
+      <section>
+        <section>
+          <h2>dep</h2>
+          <p>managing Golang's vendor dependencies</p><img style=
+          "border:0" width="300" height="300" src=
+          "imgs/DigbyShadows.png" alt="digby shadows">
+        </section>
+        <section data-markdown="">
+            * Klaus Ita (koki)
+            * twitter: @ffffffff8129ecf
+            * email: mailto:koki.eml@gmail.com
+        </section>
+        <section data-markdown="">
+            <h2>History of deps mgmt in Go</h2>
+
+            * `go get`
+            * The Go standard installation has a single source tree (`~/go/src/...`)
+            * `GO15VENDOREXPERIMENT=1`, compiler looks for deps in `./vendor`
+            * [List of Package Management Tools](https://github.com/golang/go/wiki/PackageManagementTools) grew: Govendor, gv, gvt, govend, Glide, ...
+        </section>
+
+        <section>
+          <h3>Workspace in Go</h3>
+          <pre><code>
+$GOPATH/
+  bin/                            # compiled binaries
+  pkg/                            # compiled packages
+  src/                            # sources
+    github.com/golang/example/
+      .git/
+    hello/
+      hello.go
+    ...
+        </code></pre>
+        </section>
+
+        <section>
+          <h3>vendored project layout</h3>
+          <pre><code>
+$GOPATH ...
+
+./projectA/                   # my project under $GOPATH
+  .git/                       # I am using a git-repo per project
+  http/
+    handler.go
+  main.go
+  vendor/                     # and GO15VENDOREXPERIMENT
+    github.com/apache/thrift/ # (which is default by now)
+      ... many files
+    golang.org/x/time/
+      ... many more files
+                    </code></pre>
+          <p>managing <code>./vendor</code> manually is total
+          torture!<br>
+          (go get, cp, git submodules, ...)</p>
+        </section>
+
+
+        <section data-markdown="">
+          until 2016, the community was stuck in
+          best-practice-snobism by big enterprises and sad users
+
+          ### the rescue effort
+
+          * accept that dependency management is hard
+          * know dependency hell is real!
+          * Peter Bourgon offered to lead a team, the "Package management Committee", who should
+          work out a "unified tool" (=2016)
+          * dep https://github.com/golang/dep and [sam boyer](https://github.com/sdboyer), [Carolyn van Slyck](https://github.com/carolynvs) to the rescue
+        </section>
+      </section>
+
+
+      <section>
+        <h1>using dep</h1>
+        <section>
+          <h2>installing dep</h2>
+          <pre><code>
+          go get -u github.com/golang/dep/cmd/dep
+          </code></pre>
+        </section>
+        <section>
+          <h2>getting started</h2>
+          <pre><code>
+# decouple your project from the $GOPATH
+# ALL dependencies will be vendored
+$ dep init -v  # always add the -v flag
+
+# add a package before using it in code
+$ dep ensure -add golang.org/x/time/rate
+
+# enjoy the fruit of your work
+$ dep status -v
+                    </code></pre>
+          <p><code>dep</code> creates the <code>Gopkg.lock</code>
+          and <code>Gopkg.toml</code> (called the Manifest) files</p>
+        </section>
+        <section data-markdown>
+            ## dep solver
+
+            * dep ensure makes sure **code**, **Manifest** and lock are in sync and generates `./vendor`
+
+            <img src="imgs/29223886-22dd2578-7e96-11e7-8b51-3637b9ddc715.png" width="400" height="200" alt="solver tree" />
+
+        </section>
+        <section>
+          <h2>common actions</h2>
+          <pre><code>
+# whenever you don't know what to do
+$ dep ensure -v
+
+# see my dependency status / updates
+$ dep status
+
+# if you care about the git repo size
+$ dep prune
+
+# test if the Gopkg.toml file is still good
+$ rm -rf ./vendor
+$ dep ensure -v
+$ ... build project
+                    </code></pre>
+        </section>
+        <section>
+          <h2>visualizing</h2>
+          <p>You can even visualize the dependency tree, if you need to show off</p>
+          <pre><code>
+# sudo apt install graphviz
+$ dep status -dot | dot -T png | display
+                    </code></pre>
+          <p><img width="300" height="300" src="imgs/deps.png" alt=
+          "dependencies">,
+        but they look like <a href="imgs/dependency_graph_wallapi.png">
+            this</a> for proper projects </p> </section>
+      </section>
+      <section>
+        <h2>Manifest: Gopkg.toml</h2>
+        <section data-markdown="">
+            ### how to manage the dependencies after initialization
+
+            * `Gopkg.toml` is your friend
+            * very simple format
+            * used as input for `Gopkg.lock`
+            * You **will** need to edit this file
+            * `Gopkg.toml` and `Gopkg.lock` must be checked in your `.git`
+        </section><!--
+                    <section>
+                        <h3>Gopkg.toml Example</h3>
+                    <pre>
+                    <code class="hljs" contenteditable >
+required = ["github.com/user/thing/cmd/thing"]
+
+ignored = [
+    "bitbucket.org/user/project/pkgA/pkgY"
+    ]
+
+[metadata]
+codename = "foo"
+
+[[constraint]]
+  name = "github.com/user/project"
+  version = "=1.0.0"
+
+  [metadata]
+  property2 = 10
+
+[[constraint]]
+  name = "github.com/user/project2"
+  branch = "dev"
+  source = "github.com/myfork/project2"
+
+[[override]]
+  name = "github.com/x/y"
+  version = "2.4.0"
+
+  [metadata]
+  propertyX = "valueX"
+  </code></pre>
+
+                </section>
+                -->
+        <section>
+          <h3>Syntax Elements</h3>
+          <table>
+            <tr>
+              <td>required</td>
+              <td>use for tools, not directly or transitively
+              required from code</td>
+            </tr>
+            <tr>
+              <td>ignored</td>
+              <td>things you do not want to install (private
+              dependencies)</td>
+            </tr>
+            <tr>
+              <td>metadata</td>
+              <td>ignored by dep, can be used by other tools</td>
+            </tr>
+            <tr>
+              <td>constraint</td>
+              <td>direct dependency, either branch, version or
+              revision</td>
+            </tr>
+            <tr>
+              <td>override</td>
+              <td>Don't use! last resort to override a package in
+              all dependency graphs</td>
+            </tr>
+            <tr>
+              <td>version</td>
+              <td>property of "constraint"</td>
+            </tr>
+            <tr>
+              <td>name</td>
+              <td>name of a package</td>
+            </tr>
+          </table>
+        </section>
+        <section >
+           <h3>version</h3>
+
+            If you need to specify a specific version
+            check <a href="https://github.com/Masterminds/semver">https://github.com/Masterminds/semver</a> for details
+          about the comparison operators, you can go very fany
+          there!
+
+          <pre><code>
+                `=`    `!=`   `&gt;`
+                `&lt;`    `&gt;=`   `&lt;=`
+                `-`    `~`    `^`
+                `[xX*]`
+
+          ^ (major range) is default, so:
+
+          1.2.3 becomes `&gt;=1.2.3, &lt;2.0.0`
+          0.2.3 becomes `&gt;=0.2.3, &lt;0.3.0`
+          0.0.3 becomes `&gt;=0.0.3, &lt;0.1.0`
+          </code></pre>
+        </section>
+        <section>
+          <h3>Example</h3>
+          <pre><code>
+[[constraint]]
+  name = "github.com/BurntSushi/toml"
+  version = "0.3.0"  # is ^0.3.0
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/afex/hystrix-go"
+
+[[constraint]]
+  name = "github.com/apache/thrift"
+  branch = "master"
+  source = "git.apache.org/thrift.git"
+
+[[constraint]]
+  name = "github.com/PuerkitoBio/purell"
+  version = "1.1.0"
+...
+  </code></pre>
+        </section>
+      </section>
+      <section>
+        <h2>more topics</h2>
+        <section data-markdown="">
+            ### Commit './vendor'?
+
+            **Pros**
+
+            - truly reproducible builds
+            - no `dep ensure` needed when `git pull`, `git
+            merge`, ...
+            - as of today, it's faster
+
+            **Cons**
+
+            - Your repo will be potentially a lot bigger, (though `dep prune` can help minimize this problem)
+            - `git diff` is much harder to make sense of
+            - easy to forget about `dep` and `Gopkg`
+        </section>
+      </section>
+      <section>
+        <section>
+          <h3>Docker</h3>
+          <p>use this recipe in docker if vendor is not checked
+          in</p>
+          <pre>
+                        <code class="hljs" contenteditable="">
+FROM golang:1.9 AS builder
+
+RUN curl -fsSL -o /usr/local/bin/dep \
+    https://github.com/golang/dep/releases/download/vX.X.X/dep-linux-amd64 &amp;& \
+    chmod +x /usr/local/bin/dep
+
+RUN mkdir -p /go/src/github.com/***
+WORKDIR /go/src/github.com/***
+
+COPY Gopkg.toml Gopkg.lock ./
+# copies the Gopkg.toml and Gopkg.lock to WORKDIR
+
+RUN dep ensure -vendor-only
+# install the dependencies without checking for go code
+
+...
+                        </code>
+                        </pre>
+        </section>
+        <section data-markdown="">
+            ## For library-developers
+
+            * commit `Gopkg.toml` and `Gopkg.lock`
+            * push a [semver](https://semver.org/) (like best known from [npm](https://docs.npmjs.com/misc/semver)) tag to the repo (e.g.: `v0.1.2`)
+        </section>
+        <section data-markdown="">
+            ## README
+
+            * [The Saga of Go Dependency Management](https://blog.gopheracademy.com/advent-2016/saga-go-dependency-management/)
+            * [golang/dep FAQ](https://github.com/golang/dep/blob/master/docs/FAQ.md)
+            * `dep -help`, `dep subcommand -help`
+            * https://youtu.be/eZwR8qr2BfI -- Carolyn VanSlyck, go dep in 10 minutes
+            * https://youtu.be/5LtMb090AZI -- Sam Boyer, The New Era of Go Package Management
+        </section>
+      </section>
+    </div>
+  </div>
+  <script src="lib/js/head.min.js">
+  </script>
+  <script src="js/reveal.min.js">
+  </script>
+  <script>
+
+                        // Full list of configuration options available here:
+                        // https://github.com/hakimel/reveal.js#configuration
+                        Reveal.initialize({
+                                controls: true,
+                                progress: true,
+                                history: true,
+                overview: true,
+                mouseWheel: false,
+
+                                theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+                                transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/none
+
+                                // Optional libraries used to extend on reveal.js
+                                dependencies: [
+                                        { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+                                        { src: 'plugin/markdown/showdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                                        { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                                        { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+                                        { src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+                                        { src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+                                ]
+                        });
+
+  </script>
+</body>
+</html>
