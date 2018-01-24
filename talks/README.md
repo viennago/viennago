@@ -2,6 +2,9 @@
 
 Slides and demo code from previous meetups:
 
+## January
+[Using Firebase Cloud Messaging with Go](https://github.com/viennago/viennago/blob/master/talks/2018_january/vienna.go-firebase-cloud-messaging), by Michael Köppl
+
 ## November
 
 [Intro To Dep](https://github.com/viennago/viennago/blob/master/talks/2017_november/dep/), The Go Dependency Management Tool, by Klaus Ita.
